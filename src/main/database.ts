@@ -90,10 +90,20 @@ export async function initDatabase(): Promise<void> {
       name TEXT NOT NULL,
       parent_id INTEGER,
       sort_order INTEGER DEFAULT 0,
+      is_preset INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
     )
   `)
+
+  // 迁移旧数据库：如果没有 is_preset 列，自动补上
+  const tableInfo = queryAll("PRAGMA table_info(categories)")
+  const hasIsPreset = tableInfo.some((col: any) => col.name === 'is_preset')
+  if (!hasIsPreset) {
+    db.run('ALTER TABLE categories ADD COLUMN is_preset INTEGER DEFAULT 0')
+    // 将已有分类标记为预置（保护已有数据）
+    db.run('UPDATE categories SET is_preset = 1')
+  }
 
   // 创建花销表
   db.run(`
@@ -114,10 +124,10 @@ export async function initDatabase(): Promise<void> {
   const count = queryOne('SELECT COUNT(*) as cnt FROM categories')
   if (count.cnt === 0) {
     DEFAULT_CATEGORIES.forEach((parent, pIdx) => {
-      const result = run('INSERT INTO categories (name, parent_id, sort_order) VALUES (?, ?, ?)', [parent.name, null, pIdx])
+      const result = run('INSERT INTO categories (name, parent_id, sort_order, is_preset) VALUES (?, ?, ?, 1)', [parent.name, null, pIdx])
       const parentId = result.lastInsertRowid
       parent.children.forEach((child, cIdx) => {
-        run('INSERT INTO categories (name, parent_id, sort_order) VALUES (?, ?, ?)', [child, parentId, cIdx])
+        run('INSERT INTO categories (name, parent_id, sort_order, is_preset) VALUES (?, ?, ?, 1)', [child, parentId, cIdx])
       })
     })
   }
@@ -127,10 +137,10 @@ export async function initDatabase(): Promise<void> {
 
 export function getCategories(): any[] {
   const parents = queryAll(
-    'SELECT id, name, parent_id, sort_order FROM categories WHERE parent_id IS NULL ORDER BY sort_order'
+    'SELECT id, name, parent_id, sort_order, is_preset FROM categories WHERE parent_id IS NULL ORDER BY sort_order'
   )
   const children = queryAll(
-    'SELECT id, name, parent_id, sort_order FROM categories WHERE parent_id IS NOT NULL ORDER BY sort_order'
+    'SELECT id, name, parent_id, sort_order, is_preset FROM categories WHERE parent_id IS NOT NULL ORDER BY sort_order'
   )
   return parents.map((p: any) => ({
     ...p,
@@ -143,11 +153,26 @@ export function addCategory(name: string, parentId: number | null): any {
   return { id: result.lastInsertRowid, name, parent_id: parentId }
 }
 
-export function updateCategory(id: number, name: string): void {
+export function updateCategory(id: number, name: string): { success: boolean; error?: string } {
+  const cat = queryOne('SELECT is_preset FROM categories WHERE id = ?', [id])
+  if (!cat) {
+    return { success: false, error: '分类不存在' }
+  }
+  if (cat.is_preset === 1) {
+    return { success: false, error: '系统预置分类不可修改' }
+  }
   run('UPDATE categories SET name = ? WHERE id = ?', [name, id])
+  return { success: true }
 }
 
 export function deleteCategory(id: number): { success: boolean; error?: string } {
+  const cat = queryOne('SELECT is_preset FROM categories WHERE id = ?', [id])
+  if (!cat) {
+    return { success: false, error: '分类不存在' }
+  }
+  if (cat.is_preset === 1) {
+    return { success: false, error: '系统预置分类不可删除' }
+  }
   const expCount = queryOne('SELECT COUNT(*) as cnt FROM expenses WHERE category_id = ?', [id])
   if (expCount.cnt > 0) {
     return { success: false, error: '该分类下有花销记录，无法删除' }

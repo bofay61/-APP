@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addCategory: (name: string, parentId: number | null): Promise<any> =>
     ipcRenderer.invoke('categories:add', name, parentId),
 
-  updateCategory: (id: number, name: string): Promise<void> =>
+  updateCategory: (id: number, name: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('categories:update', id, name),
 
   deleteCategory: (id: number): Promise<{ success: boolean; error?: string }> =>

@@ -5,6 +5,7 @@ interface Category {
   name: string
   parent_id: number | null
   sort_order: number
+  is_preset: number
   children?: Category[]
 }
 
@@ -31,7 +32,7 @@ interface ExpenseStats {
 interface ElectronAPI {
   getCategories: () => Promise<Category[]>
   addCategory: (name: string, parentId: number | null) => Promise<any>
-  updateCategory: (id: number, name: string) => Promise<void>
+  updateCategory: (id: number, name: string) => Promise<{ success: boolean; error?: string }>
   deleteCategory: (id: number) => Promise<{ success: boolean; error?: string }>
   addExpense: (data: { amount: number; categoryId: number; date: string; note?: string }) => Promise<any>
   getExpenses: (filters?: { categoryId?: number; startDate?: string; endDate?: string }) => Promise<Expense[]>
