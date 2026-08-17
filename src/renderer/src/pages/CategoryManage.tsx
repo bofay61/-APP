@@ -6,6 +6,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 
 export default function CategoryManage() {
   const [categories, setCategories] = useState<Category[]>([])
+  const [expandedKeys, setExpandedKeys] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalTitle, setModalTitle] = useState('')
@@ -24,6 +25,8 @@ export default function CategoryManage() {
     try {
       const cats = await window.electronAPI.getCategories()
       setCategories(cats)
+      // 数据异步到达，受控展开键保证小类默认全部展开
+      setExpandedKeys(cats.map((c) => c.id))
     } finally {
       setLoading(false)
     }
@@ -178,7 +181,8 @@ export default function CategoryManage() {
           pagination={false}
           locale={{ emptyText: <Empty description="暂无分类" /> }}
           expandable={{
-            defaultExpandAllRows: true,
+            expandedRowKeys: expandedKeys,
+            onExpandedRowsChange: (keys) => setExpandedKeys(keys.map(Number)),
             childrenColumnName: 'children'
           }}
         />

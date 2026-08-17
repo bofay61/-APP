@@ -28,6 +28,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteExpense: (id: number): Promise<void> =>
     ipcRenderer.invoke('expenses:delete', id),
 
+  // ---- 贪吃蛇 ----
+  getHighScore: (): Promise<number> =>
+    ipcRenderer.invoke('snake:getHighScore'),
+
+  setHighScore: (value: number): Promise<void> =>
+    ipcRenderer.invoke('snake:setHighScore', value),
+
   // ---- 统计 ----
   getExpenseStats: (params: { year: number; month?: number }): Promise<any[]> =>
     ipcRenderer.invoke('stats:getExpenseStats', params),

@@ -40,6 +40,8 @@ interface ElectronAPI {
   deleteExpense: (id: number) => Promise<void>
   getExpenseStats: (params: { year: number; month?: number }) => Promise<ExpenseStats[]>
   exportCsv: (filters?: { startDate?: string; endDate?: string }) => Promise<{ success: boolean; path?: string }>
+  getHighScore: () => Promise<number>
+  setHighScore: (value: number) => Promise<void>
 }
 
 interface Window {

@@ -101,8 +101,6 @@ export async function initDatabase(): Promise<void> {
   const hasIsPreset = tableInfo.some((col: any) => col.name === 'is_preset')
   if (!hasIsPreset) {
     db.run('ALTER TABLE categories ADD COLUMN is_preset INTEGER DEFAULT 0')
-    // 将已有分类标记为预置（保护已有数据）
-    db.run('UPDATE categories SET is_preset = 1')
   }
 
   // 创建花销表
@@ -115,6 +113,14 @@ export async function initDatabase(): Promise<void> {
       note TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (category_id) REFERENCES categories(id)
+    )
+  `)
+
+  // 创建键值表（存贪吃蛇最高分等零散数据）
+  db.run(`
+    CREATE TABLE IF NOT EXISTS key_value (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     )
   `)
 
@@ -131,6 +137,20 @@ export async function initDatabase(): Promise<void> {
       })
     })
   }
+
+  // 校正预置标记：只有内置分类名单中的才锁定，用户自建分类保持可编辑
+  // （旧版本误锁的用户分类会在下次启动时自动解锁）
+  db.run('UPDATE categories SET is_preset = 0')
+  DEFAULT_CATEGORIES.forEach((parent) => {
+    db.run('UPDATE categories SET is_preset = 1 WHERE name = ? AND parent_id IS NULL', [parent.name])
+    parent.children.forEach((child) => {
+      db.run(
+        'UPDATE categories SET is_preset = 1 WHERE name = ? AND parent_id = (SELECT id FROM categories WHERE name = ? AND parent_id IS NULL)',
+        [child, parent.name]
+      )
+    })
+  })
+  saveToDisk()
 }
 
 // ---- 分类操作 ----
@@ -149,7 +169,12 @@ export function getCategories(): any[] {
 }
 
 export function addCategory(name: string, parentId: number | null): any {
-  const result = run('INSERT INTO categories (name, parent_id) VALUES (?, ?)', [name, parentId])
+  // 新分类排在同类列表末尾
+  const maxSort = queryOne('SELECT MAX(sort_order) as max_sort FROM categories WHERE parent_id IS ?', [parentId])
+  const result = run(
+    'INSERT INTO categories (name, parent_id, sort_order) VALUES (?, ?, ?)',
+    [name, parentId, ((maxSort && maxSort.max_sort) ?? -1) + 1]
+  )
   return { id: result.lastInsertRowid, name, parent_id: parentId }
 }
 
@@ -183,6 +208,22 @@ export function deleteCategory(id: number): { success: boolean; error?: string }
   }
   run('DELETE FROM categories WHERE id = ?', [id])
   return { success: true }
+}
+
+// ---- 贪吃蛇最高分 ----
+
+export function getHighScore(): number {
+  const row = queryOne('SELECT value FROM key_value WHERE key = ?', ['snake_high_score'])
+  if (!row) return 0
+  const n = Number(row.value)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+}
+
+export function setHighScore(value: number): void {
+  run(
+    'INSERT OR REPLACE INTO key_value (key, value) VALUES (?, ?)',
+    ['snake_high_score', String(Math.floor(value))]
+  )
 }
 
 // ---- 花销操作 ----

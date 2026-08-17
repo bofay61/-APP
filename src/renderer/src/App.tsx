@@ -4,12 +4,14 @@ import {
   PlusCircleOutlined,
   UnorderedListOutlined,
   PieChartOutlined,
-  AppstoreOutlined
+  AppstoreOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons'
 import AddExpense from './pages/AddExpense'
 import ExpenseList from './pages/ExpenseList'
 import Statistics from './pages/Statistics'
 import CategoryManage from './pages/CategoryManage'
+import SnakeGame from './pages/SnakeGame'
 
 const { Sider, Content } = Layout
 
@@ -33,6 +35,11 @@ const menuItems = [
     key: '/categories',
     icon: <AppstoreOutlined />,
     label: '分类管理'
+  },
+  {
+    key: '/snake',
+    icon: <PlayCircleOutlined />,
+    label: '🎮 贪吃蛇'
   }
 ]
 
@@ -78,6 +85,7 @@ export default function AppRouter() {
             <Route path="/list" element={<ExpenseList />} />
             <Route path="/stats" element={<Statistics />} />
             <Route path="/categories" element={<CategoryManage />} />
+            <Route path="/snake" element={<SnakeGame />} />
           </Routes>
         </Content>
       </Layout>

@@ -11,7 +11,9 @@ import {
   addExpense,
   updateExpense,
   deleteExpense,
-  getExpenseStats
+  getExpenseStats,
+  getHighScore,
+  setHighScore
 } from './database'
 
 let mainWindow: BrowserWindow | null = null
@@ -85,6 +87,15 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('expenses:delete', async (_event, id: number) => {
     return deleteExpense(id)
+  })
+
+  // ---- 贪吃蛇最高分 ----
+  ipcMain.handle('snake:getHighScore', async () => {
+    return getHighScore()
+  })
+
+  ipcMain.handle('snake:setHighScore', async (_event, value: number) => {
+    setHighScore(value)
   })
 
   // ---- 统计 ----
